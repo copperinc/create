@@ -121,6 +121,14 @@ module.exports = async function create (params = {}, callback) {
     }
   }
 
+  if (arc.rules) {
+    let type = 'rules'
+    functions = functions.concat(arc.rules.map(tuple=> {
+      let name = tuple.shift()
+      return code.bind({}, {type, runtime, name, folder})
+    }))
+  }
+
   parallel(functions, function done (err, results) {
     if (err) callback(err)
     else {

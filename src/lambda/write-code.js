@@ -5,9 +5,10 @@ let queues = require('./templates/queues')
 let ws = require('./templates/ws')
 let scheduled = require('./templates/scheduled')
 let tables = require('./templates/tables')
+let rules = require('./templates/rules')
 
 module.exports = function writeCode ({ fullPath, type, runtime }, callback) {
-  let types = { http, events, queues, ws, scheduled, tables }
+  let types = { http, events, queues, ws, scheduled, tables, rules }
   let run = runtime.split(/\d/)[0]
   let body = types[type][run]
   writeFile(fullPath, body, callback)
