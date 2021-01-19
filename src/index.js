@@ -1,5 +1,6 @@
 let { updater } = require('@architect/utils')
-let { sep } = require('path')
+let { sep, join } = require('path')
+let { existsSync } = require('fs')
 let _inventory = require('@architect/inventory')
 let parallel = require('run-parallel')
 let code = require('./lambda')
@@ -43,7 +44,7 @@ module.exports = async function create (params = {}, callback) {
   try {
     let { inv } = inventory
     let prefs = inv._project.preferences
-    let { http, events, queues, scheduled, static, streams, ws } = inv
+    let { http, events, queues, scheduled, static, streams, ws, macros } = inv
 
     let supported = [ 'node', 'deno', 'ruby', 'python', 'rb', 'py', 'js' ]
     let node = 'nodejs12.x'
@@ -74,6 +75,20 @@ module.exports = async function create (params = {}, callback) {
     if (scheduled)  functions.push(...scheduled.map(binder.scheduled))
     if (ws)         functions.push(...ws.map(binder.ws))
     if (streams)    functions.push(...streams.map(binder.streams))
+    if (macros)     functions.push(...macros.map((name) => {
+      let macroPath = null
+      let localPath = join(process.cwd(), 'src', 'macros', `${name}.js`)
+      let localPath1 = join(process.cwd(), 'src', 'macros', name)
+      let modulePath = join(process.cwd(), 'node_modules', name)
+      let modulePath1 = join(process.cwd(), 'node_modules', `@${name}`)
+      if (existsSync(localPath)) macroPath = localPath
+      else if (existsSync(localPath1)) macroPath = localPath1
+      else if (existsSync(modulePath)) macroPath = modulePath
+      else if (existsSync(modulePath1)) macroPath = modulePath1
+      // eslint-disable-next-line
+      let macro = require(macroPath)
+      return macro.create
+    }).filter((macro) => macro).map((macro) => macro(inventory)).flat().map((macroLambda) => code.bind({}, { ...macroLambda, runtime, type: 'macro' })))
 
     parallel(functions, function done (err, results) {
       if (err) callback(err)
